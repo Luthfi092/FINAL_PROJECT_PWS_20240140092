@@ -1,0 +1,16 @@
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+DROP TABLE IF EXISTS api_usage CASCADE;
+DROP TABLE IF EXISTS api_keys CASCADE;
+DROP TABLE IF EXISTS tracks CASCADE;
+DROP TABLE IF EXISTS albums CASCADE;
+DROP TABLE IF EXISTS artists CASCADE;
+DROP TABLE IF EXISTS genres CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(100) NOT NULL, email VARCHAR(150) UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE genres (id SERIAL PRIMARY KEY, name VARCHAR(80) UNIQUE NOT NULL, description TEXT);
+CREATE TABLE artists (id SERIAL PRIMARY KEY, name VARCHAR(150) UNIQUE NOT NULL, country VARCHAR(80), debut_year INT, bio TEXT);
+CREATE TABLE albums (id SERIAL PRIMARY KEY, artist_id INT NOT NULL REFERENCES artists(id) ON DELETE CASCADE, title VARCHAR(180) NOT NULL, release_year INT NOT NULL, album_type VARCHAR(30) DEFAULT 'album', total_tracks INT DEFAULT 1);
+CREATE TABLE tracks (id SERIAL PRIMARY KEY, album_id INT NOT NULL REFERENCES albums(id) ON DELETE CASCADE, genre_id INT NOT NULL REFERENCES genres(id), title VARCHAR(180) NOT NULL, duration_seconds INT NOT NULL CHECK(duration_seconds>0), track_number INT NOT NULL, release_date DATE NOT NULL, popularity INT DEFAULT 0 CHECK(popularity BETWEEN 0 AND 100), explicit BOOLEAN DEFAULT FALSE, language VARCHAR(40) DEFAULT 'English', bpm INT, energy NUMERIC(4,2), danceability NUMERIC(4,2), acousticness NUMERIC(4,2), description TEXT);
+CREATE TABLE api_keys (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, key_prefix VARCHAR(20) NOT NULL, key_hash TEXT NOT NULL UNIQUE, last_used_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW(), revoked_at TIMESTAMPTZ);
+CREATE TABLE api_usage (id BIGSERIAL PRIMARY KEY, api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL, endpoint VARCHAR(255) NOT NULL, method VARCHAR(10) NOT NULL, status_code INT NOT NULL, response_ms INT, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE INDEX idx_tracks_genre ON tracks(genre_id); CREATE INDEX idx_tracks_album ON tracks(album_id); CREATE INDEX idx_albums_artist ON albums(artist_id); CREATE INDEX idx_api_keys_hash ON api_keys(key_hash);
