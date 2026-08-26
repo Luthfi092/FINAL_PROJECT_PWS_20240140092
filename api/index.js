@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json()); 
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Health Check Endpoint (Dengan logging error detail)
+// Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     await db.query('SELECT 1');
@@ -165,6 +165,26 @@ app.get('/v1/tracks/:id', async (req, res) => {
   );
   if (!r.rows.length) return res.status(404).json({ success: false, message: 'Track tidak ditemukan' });
   res.json({ success: true, data: r.rows[0] });
+});
+
+// Endpoint Albums Baru
+app.get('/v1/albums', async (req, res) => {
+  try {
+    const search = req.query.search || '';
+    const r = await db.query(
+      `SELECT a.id, a.title, a.release_year, ar.name artist, COUNT(t.id)::int track_count 
+       FROM albums a 
+       JOIN artists ar ON ar.id = a.artist_id 
+       LEFT JOIN tracks t ON t.album_id = a.id 
+       WHERE a.title ILIKE $1 
+       GROUP BY a.id, ar.name 
+       ORDER BY a.title`,
+      [`%${search}%`]
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 app.get('/v1/genres', async (req, res) => {
